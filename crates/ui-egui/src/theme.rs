@@ -123,6 +123,10 @@ impl Tokens {
     }
 }
 
+/// The name of the installed Han face [`font_definitions`] adds when the build has no embedded
+/// CJK faces (see [`crate::system_fonts::cjk`]) so the Chinese interface still draws.
+pub const SYSTEM_FALLBACK: &str = "system-fallback";
+
 /// Install the UI fonts (Inter, JetBrains Mono) and the craft-fonts CJK interface faces if built
 /// in, Japanese first.
 pub fn install_fonts(ctx: &egui::Context) {
@@ -162,6 +166,19 @@ pub fn font_definitions(prefer_hans: bool) -> FontDefinitions {
         for fam in [FontFamily::Proportional, FontFamily::Name("medium".into()), FontFamily::Name("semibold".into())] {
             if let Some(v) = fonts.families.get_mut(&fam) {
                 v.push(name.clone());
+            }
+        }
+    }
+    // A build without craft-fonts embeds no Han faces; cover the Chinese interface with one
+    // installed CJK face instead (found through the same font database the documents use).
+    #[cfg(not(target_arch = "wasm32"))]
+    if wordcraft_fonts::ui_cjk_fonts(prefer_hans).is_empty()
+        && let Some(data) = crate::system_fonts::cjk()
+    {
+        fonts.font_data.insert(SYSTEM_FALLBACK.to_owned(), data);
+        for fam in [FontFamily::Proportional, FontFamily::Name("medium".into()), FontFamily::Name("semibold".into())] {
+            if let Some(v) = fonts.families.get_mut(&fam) {
+                v.push(SYSTEM_FALLBACK.to_owned());
             }
         }
     }
